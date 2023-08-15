@@ -2,8 +2,11 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const booksRoute = require("./routes/booksRoute");
+
 require("dotenv").config();
 const userRoute = require("./routes/user");
+const path = require("path");
+
 mongoose
   .connect(
     `mongodb+srv://${process.env.DBUSERNAME}:${process.env.DBPASSWORD}@${process.env.DBCLUSTER}/${process.env.DBNAME}?retryWrites=true&w=majority`,
@@ -31,6 +34,7 @@ app.use((req, res, next) => {
 
 app.use("/api/books", booksRoute);
 app.use("/api/auth/", userRoute);
+app.use("/images", express.static(path.join(__dirname, "images")));
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
