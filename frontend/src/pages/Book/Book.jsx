@@ -74,7 +74,7 @@ function Book() {
             style={{ backgroundImage: `url("${book.imageUrl}")` }}
           />
           <div className={styles.BookContent}>
-            {book?.userId === connectedUser?.userId ? (
+            {book?.userId === connectedUser?.userId ? null : ( // Inversion de la condition ici
               <div className={styles.Owner}>
                 <p>Vous avez publié cet ouvrage, vous pouvez le :</p>
                 <p>
@@ -89,7 +89,7 @@ function Book() {
                   </span>{" "}
                 </p>
               </div>
-            ) : null}
+            )}
             <BookInfo book={book} />
             <BookRatingForm
               userRated={userRated}
