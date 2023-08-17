@@ -1,18 +1,17 @@
 const { unlink } = require("../app");
 const Book = require("../models/Books");
 const fs = require("fs");
-
 const sharp = require("sharp");
 
 exports.createBook = (req, res, next) => {
   const BookObject = JSON.parse(req.body.book);
   delete BookObject._id;
   delete BookObject._userId;
-
   const imagePath = `images/${req.file.filename}`;
   const webpFormat = `images/${req.file.filename}.webp`;
 
   sharp(imagePath)
+    .resize({ width: 400, height: 400 })
     .webp({ quality: 80 })
     .toFile(webpFormat, (conversionError, info) => {
       if (conversionError) {
@@ -66,30 +65,56 @@ exports.modifyBook = (req, res, next) => {
 
       let bookObject;
       if (req.file) {
-        bookObject = {
-          ...JSON.parse(req.body.book),
-          imageUrl: `${req.protocol}://${req.get("host")}/images/${
-            req.file.filename
-          }`,
-        };
+        const imagePath = `images/${req.file.filename}`;
+        const webpFormat = `images/${req.file.filename}.webp`;
+
+        sharp(imagePath)
+          .resize({ width: 400, height: 400 })
+          .webp({ quality: 80 })
+          .toFile(webpFormat, (conversionError, info) => {
+            if (conversionError) {
+              return res.status(500).json({
+                error: "Erreur lors de la conversion de l'image en WebP",
+              });
+            }
+
+            fs.unlink(imagePath, (unlinkError) => {
+              if (unlinkError) {
+                console.error(
+                  "Erreur lors de la suppression de l'image d'origine:",
+                  unlinkError
+                );
+              }
+
+              bookObject = {
+                ...JSON.parse(req.body.book),
+                imageUrl: `${req.protocol}://${req.get("host")}/images/${
+                  req.file.filename
+                }.webp`,
+              };
+
+              updateBook(book, bookObject, req, res);
+            });
+          });
       } else {
         bookObject = { ...req.body };
         delete bookObject._userId;
+        updateBook(book, bookObject, req, res);
       }
-
-      Book.updateOne(
-        { _id: req.params.id },
-        { ...bookObject, _id: req.params.id }
-      )
-        .then(() => res.status(200).json({ message: "objet modifié" }))
-        .catch((error) => {
-          res.status(400).json({ error });
-        });
     })
     .catch((error) => {
       res.status(400).json({ error });
     });
 };
+
+// Fonction pour mettre à jour chaque livre modifié par l'user
+function updateBook(book, bookObject, req, res) {
+  Book.updateOne({ _id: req.params.id }, { ...bookObject, _id: req.params.id })
+    .then(() => res.status(200).json({ message: "Objet modifié" }))
+    .catch((error) => {
+      res.status(400).json({ error });
+    });
+}
 
 exports.getAllBook = (req, res, next) => {
   Book.find()
@@ -115,7 +140,7 @@ exports.deleteBook = (req, res, next) => {
       );
 
       if (!userRating) {
-        return res.status(401).json({ message: "Non autorisé" });
+        return res.status(403).json({ message: "Non autorisé" });
       }
 
       const filename = book.imageUrl.split("/images/")[1];
